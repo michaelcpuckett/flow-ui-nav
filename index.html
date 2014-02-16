@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Flow</title>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <header><h1></h1></header>
+        <nav>
+            <ul class="toc">
+                <li class="toc__topic">
+                    <a class="toc__link" href="#luke-skywalker">Luke Skywalker</a>
+                </li>
+                <li class="toc__topic">
+                    <a class="toc__link" href="#leia-organa">Leia Organa</a>
+                </li>
+                <li class="toc__topic">
+                    <a class="toc__link" href="#han-solo">Han Solo</a>
+                </li>
+                <li class="toc__topic">
+                    <a class="toc__link" href="#darth-vader">Darth Vader</a>
+                </li>
+                <li class="toc__topic">
+                    <a class="toc__link" href="#obi-wan-kenobi">Obi-Wan Kenobi</a>
+                </li>
+                <li class="toc__topic">
+                    <a class="toc__link" href="#yoda">Yoda</a>
+                </li>
+            </ul>
+        </nav>
+        <main></main>
+
+        <script>
+            window.f = {};
+
+            f.util = (function () {
+                return {
+                    delay: 1000,
+                    defer: function () {
+                        callbacks = [];
+                        return {
+                            then: function (callback) {
+                                callbacks.push(callback);
+                            },
+                            resolve: function (data) {
+                                callbacks.forEach(function (cb) {
+                                    cb(data);
+                                });
+                            },
+                            reject: function (error) {
+                                callbacks.forEach(function (cb) {
+                                    cb(error);
+                                })
+                            }
+                        };
+                    }
+                }
+            }());
+
+            f.viewCtrl = (function () {
+                return {
+                    reset: function () {
+                        f.navCtrl.reset();
+                        f.contentCtrl.reset();
+                        f.headerCtrl.reset();
+                    },
+                    select: function (el) {
+                        f.navCtrl.select(el);
+                        f.contentCtrl.select(el.getAttribute('href').substring(1));
+                        f.headerCtrl.select(el.innerHTML);
+                    }
+                };
+            }());
+
+            f.headerCtrl = (function () {
+                var el = document.getElementsByTagName('header')[0],
+                    h1El = el.querySelectorAll('h1')[0],
+                    current = '';
+                return {
+                    reset: function () {
+                        h1El.innerText = '';
+                        el.classList.remove('inline');
+                    },
+                    select: function (text) {
+                        el.classList.remove('inline');
+                        current = text;
+                    },
+                    ready: function () {
+                        console.log(current);
+                        h1El.innerText = current;
+                        el.classList.add('inline');
+                    }
+                }
+            }());
+
+            f.navCtrl = (function () {
+
+                var removeActive = function () {
+                    [].slice.call(document.querySelectorAll('.toc__link')).forEach(function (el) {
+                        el.classList.remove('active');
+                    });
+                    document.getElementsByTagName('nav')[0].classList.remove('inline');
+                };
+
+                var makeActive = function (el) {
+                    el.classList.add('active');
+                };
+
+                var setLoading = function () {
+                    document.getElementsByTagName('nav')[0].classList.remove('inline');
+                };
+
+                return {
+                    reset: function () {
+                        removeActive();
+                    },
+                    select: function (link) {
+                        setLoading();
+                        removeActive();
+                        makeActive(link);
+                    },
+                    ready: function () {
+                        document.getElementsByTagName('nav')[0].classList.add('inline');
+                    }
+                }
+            }());
+
+            f.contentCtrl = (function () {
+
+                var contentEl = document.getElementsByTagName('main')[0],
+                    contentBodyEl = contentEl.childNodes[0];
+
+                var populateView = function (data) {
+                        contentEl.innerHTML = data;
+                    },
+                    getData = function (section) {
+                        var deferred = f.util.defer(),
+                            ajax = new XMLHttpRequest();
+
+                        setTimeout(function () {
+                            ajax.open('GET', '/sections/' + section, true);
+
+                            ajax.onload = function() {
+                                if (ajax.status === 200) {
+                                    deferred.resolve(ajax.responseText);
+                                } else {
+                                    deferred.reject(ajax.responseText);
+                                }
+                            };
+
+                            ajax.onerror = function () {
+                                deferred.reject(ajax.responseText);
+                            };
+
+                            ajax.send();
+                        }, f.util.delay);
+
+                        return deferred;
+                    };
+
+                return {
+                    reset: function () {
+
+                    },
+                    select: function (section) {
+                        // var randomColor = f.util.getRandomColor(),
+                        //     invertedColor = f.util.invertColor(randomColor);
+
+                        // document.getElementsByTagName('main')[0]
+                        //     .setAttribute('style',
+                        //         'background-color: ' + randomColor + ';\
+                        //                     color: ' + invertedColor
+                        //     );
+                        getData(section).then(function (data) {
+                            f.navCtrl.ready();
+                            populateView(data);
+                            f.headerCtrl.ready();
+                        });
+                    }
+                };
+            }());
+
+            document.addEventListener('click', function (e) {
+                var el = e.srcElement,
+                    classList = el.classList;
+
+                if (classList.contains('toc__link')) {
+                    if (classList.contains('active')) {
+                        f.viewCtrl.reset();
+                    } else {
+                        f.viewCtrl.select(el);
+                    }
+                }
+
+                return false;
+            });
+        </script>
+    </body>
+</html>
